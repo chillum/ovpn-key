@@ -9,6 +9,8 @@ require_relative '../lib/functions.rb'
 SSL_CONF = 'openssl.ini'
 APP_CONF = 'ovpn-key.yml'
 
+# FIXME: shell commands' status is ignored
+
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: #{File.basename $0} <options> [--nopass]"
