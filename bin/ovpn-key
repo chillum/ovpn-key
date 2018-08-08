@@ -2,6 +2,7 @@
 require 'optparse'
 require 'fileutils'
 require 'yaml'
+require_relative '../version.rb'
 
 SSL_CONF = 'openssl.ini'
 APP_CONF = 'ovpn-key.yml'
