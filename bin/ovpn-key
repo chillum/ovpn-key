@@ -1,5 +1,6 @@
 #! /usr/bin/env ruby
 require 'optparse'
+require 'fileutils'
 require 'yaml'
 
 SSL_CONF = 'openssl.ini'
@@ -93,68 +94,10 @@ if options[:init]
     Dir.chdir options[:init]
   end
   ['certs', 'meta'].each {|dir| create_dir dir}
-  [['meta/index.txt', ''],
-    ['meta/index.txt.attr', "unique_subject = yes\n"],
-    ['meta/serial', "01\n"],
-    [SSL_CONF, %q{[req]
-default_md = sha256
-distinguished_name = dn.ovpn
-days = 3650
-
-[dn.ovpn]
-CN          = Certificate name (required)
-
-[ca]
-default_ca  = ca.ovpn
-
-[ca.ovpn]
-default_md  = sha256
-private_key = ca.key
-certificate = ca.crt
-database    = meta/index.txt
-serial      = meta/serial
-crl         = crl.pem
-policy      = policy.ovpn
-# create this directory if changing this value
-new_certs_dir    = certs
-default_days     = 3650
-default_crl_days = 3650
-subjectKeyIdentifier   = hash
-authorityKeyIdentifier = keyid,issuer:always
-
-[ext.ca]
-basicConstraints = CA:true
-
-[ext.server]
-basicConstraints = CA:false
-nsCertType       = server
-extendedKeyUsage = serverAuth
-keyUsage         = digitalSignature, keyEncipherment
-
-[ext.client]
-basicConstraints = CA:false
-extendedKeyUsage = clientAuth
-keyUsage         = digitalSignature
-
-[policy.ovpn]
-commonName             = supplied
-countryName            = optional
-stateOrProvinceName    = optional
-localityName           = optional
-organizationName       = optional
-organizationalUnitName = optional
-name                   = optional
-emailAddress           = optional
-}], [APP_CONF, %{zip_dir:  '~'
-openssl:  openssl
-key_size: 2048
-encrypt:  aes128
-req:      /C=US/L=San Francisco/O=Dva Debila/OU=OpenVPN
-cn_ca:    Certification Authority
-}]].each {|i|
-    unless File.exist? i[0]
-      File.write(i[0], i[1])
-      puts "Created file: #{i[0]}"
+  ['meta/index.txt', 'meta/index.txt.attr', 'meta/serial', SSL_CONF, APP_CONF].each {|file|
+    unless File.exist? file
+      FileUtils.copy_file(File.expand_path("defaults/#{file}", "#{__dir__}/.."), "./#{file}")
+      puts "Created file: #{file}"
     end
   }
 end
