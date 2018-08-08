@@ -3,15 +3,10 @@ require 'optparse'
 require 'fileutils'
 require 'yaml'
 require_relative '../version.rb'
+require_relative '../lib/functions.rb'
 
 SSL_CONF = 'openssl.ini'
 APP_CONF = 'ovpn-key.yml'
-
-def check_crt filename
-  ['key', 'crt'].each {|ext|
-    abort "#{filename}.#{ext} already exists, exiting" if File.exist? "#{filename}.#{ext}"
-  }
-end
 
 options = {}
 OptionParser.new do |opts|
@@ -60,35 +55,6 @@ unless options[:init] || options[:generate_ca] || options[:generate_dh] \
 end
 File.umask 0077
 
-def genrsa type, certname, no_password
-  if no_password
-    `#{OPENSSL} genrsa -out "#{certname}.key" #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}`
-  else
-    `#{OPENSSL} genrsa -#{ENCRYPT} -out "#{certname}.key" #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}`
-  end
-end
-
-def req type, certname, cn
-  if certname == 'ca'
-    `#{OPENSSL} req -new -x509 -key "#{certname}.key" -out "#{certname}.crt" -config #{SSL_CONF} -subj "/CN=#{cn}#{REQ}" -extensions ext.#{type}`
-  else
-    `#{OPENSSL} req -new -key "#{certname}.key" -out "#{certname}.csr" -config #{SSL_CONF} -subj "/CN=#{cn}#{REQ}" -extensions ext.#{type}`
-    `#{OPENSSL} ca -in "#{certname}.csr" -out "#{certname}.crt" -config #{SSL_CONF} -extensions ext.#{type} -batch`
-    File.delete "#{certname}.csr"
-  end
-end
-
-def gen_crl
-  `#{OPENSSL} ca -gencrl -out crl.pem -config #{SSL_CONF}`
-end
-
-def create_dir name
-  unless Dir.exist? name
-    Dir.mkdir name
-    puts "Created directory: #{name}"
-  end
-end
-
 if options[:init]
   unless options[:init] == '.'
     create_dir options[:init]
@@ -133,7 +99,7 @@ if options[:generate_client]
   # TODO: pack to `.tblk.zip``
 end
 if options[:revoke]
-  `#{OPENSSL} ca -revoke "#{options[:revoke]}.crt" -config #{SSL_CONF} `
+  `#{OPENSSL} ca -revoke "#{options[:revoke]}.crt" -config #{SSL_CONF}`
   gen_crl
   ['crt', 'key'].each {|ext| File.delete "#{options[:revoke]}.#{ext}"}
 end
