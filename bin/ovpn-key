@@ -1,0 +1,195 @@
+#! /usr/bin/env ruby
+require 'optparse'
+require 'yaml'
+
+SSL_CONF = 'openssl.ini'
+APP_CONF = 'ovpn-key.yml'
+
+def check_crt filename
+  ['key', 'crt'].each {|ext|
+    abort "#{filename}.#{ext} already exists, exiting" if File.exist? "#{filename}.#{ext}"
+  }
+end
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{File.basename $0} <options> [--nopass]"
+  opts.on("--init [directory]", "Init a CA directory (defaults to current)") do |v|
+    if v
+      options[:init] = v
+    else
+      options[:init] = "."
+    end
+  end
+  opts.on("--ca", "Generate a CA (ca.crt)") do |v|
+    check_crt('ca')
+    options[:generate_ca] = v
+  end
+  opts.on("--dh", "Generate a DH keyfile (dh.pem)") do |v|
+    options[:generate_dh] = v
+  end
+  opts.on("--server [name]", "Generate a server key (defaults to 'server')") do |v|
+    if v
+      options[:generate_server] = v
+    else
+      options[:generate_server] = "server"
+    end
+    check_crt(options[:generate_server])
+  end
+  opts.on("--client [name]", "Generate a client key and pack it to ZIP") do |v|
+    abort "Error: client should have an alphanumeric name" unless v
+    check_crt(v)
+    options[:generate_client] = v
+  end
+  opts.on("--revoke [name]", "Revoke a certificate (using crl.pem) and delete it") do |v|
+    abort "Please specify what certificate to revoke" unless v
+    options[:revoke] = v
+  end
+  opts.on("--nopass", "Don't protect .key files with a password") do |v|
+    options[:no_password] = v
+  end
+end.parse!
+if ARGV.length > 0
+  abort "Error: invalid args: #{ARGV.join ' '}\nSee `#{File.basename $0} -h` for help"
+end
+unless options[:init] || options[:generate_ca] || options[:generate_dh] \
+  || options[:generate_server] || options[:generate_client] || options[:revoke]
+  abort "See `#{File.basename $0} -h` for usage"
+end
+File.umask 0077
+
+def genrsa type, certname, no_password
+  if no_password
+    `#{OPENSSL} genrsa -out "#{certname}.key" #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}`
+  else
+    `#{OPENSSL} genrsa -#{ENCRYPT} -out "#{certname}.key" #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}`
+  end
+end
+
+def req type, certname, cn
+  if certname == 'ca'
+    `#{OPENSSL} req -new -x509 -key "#{certname}.key" -out "#{certname}.crt" -config #{SSL_CONF} -subj "/CN=#{cn}#{REQ}" -extensions ext.#{type}`
+  else
+    `#{OPENSSL} req -new -key "#{certname}.key" -out "#{certname}.csr" -config #{SSL_CONF} -subj "/CN=#{cn}#{REQ}" -extensions ext.#{type}`
+    `#{OPENSSL} ca -in "#{certname}.csr" -out "#{certname}.crt" -config #{SSL_CONF} -extensions ext.#{type} -batch`
+    File.delete "#{certname}.csr"
+  end
+end
+
+def gen_crl
+  `#{OPENSSL} ca -gencrl -out crl.pem -config #{SSL_CONF}`
+end
+
+def create_dir name
+  unless Dir.exist? name
+    Dir.mkdir name
+    puts "Created directory: #{name}"
+  end
+end
+
+if options[:init]
+  unless options[:init] == '.'
+    create_dir options[:init]
+    Dir.chdir options[:init]
+  end
+  ['certs', 'meta'].each {|dir| create_dir dir}
+  [['meta/index.txt', ''],
+    ['meta/index.txt.attr', "unique_subject = yes\n"],
+    ['meta/serial', "01\n"],
+    [SSL_CONF, %q{[req]
+default_md = sha256
+distinguished_name = dn.ovpn
+days = 3650
+
+[dn.ovpn]
+CN          = Certificate name (required)
+
+[ca]
+default_ca  = ca.ovpn
+
+[ca.ovpn]
+default_md  = sha256
+private_key = ca.key
+certificate = ca.crt
+database    = meta/index.txt
+serial      = meta/serial
+crl         = crl.pem
+policy      = policy.ovpn
+# create this directory if changing this value
+new_certs_dir    = certs
+default_days     = 3650
+default_crl_days = 3650
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer:always
+
+[ext.ca]
+basicConstraints = CA:true
+
+[ext.server]
+basicConstraints = CA:false
+nsCertType       = server
+extendedKeyUsage = serverAuth
+keyUsage         = digitalSignature, keyEncipherment
+
+[ext.client]
+basicConstraints = CA:false
+extendedKeyUsage = clientAuth
+keyUsage         = digitalSignature
+
+[policy.ovpn]
+commonName             = supplied
+countryName            = optional
+stateOrProvinceName    = optional
+localityName           = optional
+organizationName       = optional
+organizationalUnitName = optional
+name                   = optional
+emailAddress           = optional
+}], [APP_CONF, %{zip_dir:  '~'
+openssl:  openssl
+key_size: 2048
+encrypt:  aes128
+req:      /C=US/L=San Francisco/O=Dva Debila/OU=OpenVPN
+cn_ca:    Certification Authority
+}]].each {|i|
+    unless File.exist? i[0]
+      File.write(i[0], i[1])
+      puts "Created file: #{i[0]}"
+    end
+  }
+end
+
+begin
+  settings = YAML.load_file(APP_CONF)
+rescue Errno::ENOENT
+  abort "Run `#{File.basename $0} --init` before generating certificates"
+end
+ZIP_DIR  = settings['zip_dir'] || '~'
+OPENSSL  = settings['openssl'] || 'openssl'
+KEY_SIZE = settings['key_size'] || 2048
+ENCRYPT  = settings['encrypt'] || 'aes128'
+REQ      = settings['req']
+CN_CA    = settings['cn_ca'] || 'Certification Authority'
+
+if options[:generate_ca]
+  genrsa('ca', 'ca', options[:no_password])
+  req('ca', 'ca', CN_CA)
+  gen_crl
+end
+if options[:generate_dh]
+  `#{OPENSSL} dhparam -out dh.pem #{KEY_SIZE}`
+end
+if options[:generate_server]
+  genrsa('server', options[:generate_server], options[:no_password])
+  req('server', options[:generate_server], options[:generate_server])
+end
+if options[:generate_client]
+  genrsa('client', options[:generate_client], options[:no_password])
+  req('client', options[:generate_client], options[:generate_client])
+  # TODO: pack to `.tblk.zip``
+end
+if options[:revoke]
+  `#{OPENSSL} ca -revoke "#{options[:revoke]}.crt" -config #{SSL_CONF} `
+  gen_crl
+  ['crt', 'key'].each {|ext| File.delete "#{options[:revoke]}.#{ext}"}
+end
