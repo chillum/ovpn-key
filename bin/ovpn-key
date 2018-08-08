@@ -81,12 +81,12 @@ begin
 rescue Errno::ENOENT
   abort "Run `#{File.basename $0} --init` before generating certificates"
 end
-ZIP_DIR  = settings['zip_dir'] || '~'
-OPENSSL  = settings['openssl'] || 'openssl'
+ZIP_DIR  = settings['zip_dir']  || '~'
+OPENSSL  = settings['openssl']  || 'openssl'
 KEY_SIZE = settings['key_size'] || 2048
-ENCRYPT  = settings['encrypt'] || 'aes128'
-REQ      = settings['req']
-CN_CA    = settings['cn_ca'] || 'Certification Authority'
+ENCRYPT  = settings['encrypt']  || 'aes128'
+CN_CA    = settings['ca_name']  || 'Certification Authority'
+REQ      = settings['details']
 
 if options[:generate_ca]
   genrsa('ca', 'ca', options[:no_password])
