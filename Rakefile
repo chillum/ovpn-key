@@ -1,4 +1,4 @@
-require_relative 'version.rb'
+require_relative 'lib/version.rb'
 require 'gem4rake'
 
 Gem4Rake.new ::Version

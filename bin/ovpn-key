@@ -3,13 +3,11 @@ require 'optparse'
 require 'fileutils'
 require 'yaml'
 require 'zip'
-require_relative '../version.rb'
+require_relative '../lib/version.rb'
 require_relative '../lib/functions.rb'
 
 SSL_CONF = 'openssl.ini'
 APP_CONF = 'ovpn-key.yml'
-
-# FIXME: shell commands' status is ignored
 
 options = {}
 OptionParser.new do |opts|
@@ -90,7 +88,7 @@ if options[:generate_ca]
   gen_crl
 end
 if options[:generate_dh]
-  `#{OPENSSL} dhparam -out dh.pem #{KEY_SIZE}`
+  exe "#{OPENSSL} dhparam -out dh.pem #{KEY_SIZE}"
 end
 if options[:generate_server]
   genrsa('server', options[:generate_server], options[:no_password])
@@ -110,7 +108,7 @@ if options[:generate_client]
   genrsa('client', options[:generate_client], options[:no_password])
   req('client', options[:generate_client], options[:generate_client])
 
-  zip_file = File.expand_path(ZIP_DIR, "#{options[:generate_client]}.tblk.zip")
+  zip_file = File.join(File.expand_path(ZIP_DIR), "#{File.basename ovpn_file, '.ovpn'}.tblk.zip")
   File.delete(zip_file) if File.exist?(zip_file)
   Zip::File.open(zip_file, Zip::File::CREATE) do |zip|
     zip.get_output_stream(ovpn_file) {|f|
@@ -123,7 +121,7 @@ if options[:generate_client]
   end
 end
 if options[:revoke]
-  `#{OPENSSL} ca -revoke "#{options[:revoke]}.crt" -config #{SSL_CONF}`
+  exe "#{OPENSSL} ca -revoke '#{options[:revoke]}.crt' -config #{SSL_CONF}"
   gen_crl
   ['crt', 'key'].each {|ext| File.delete "#{options[:revoke]}.#{ext}"}
 end
