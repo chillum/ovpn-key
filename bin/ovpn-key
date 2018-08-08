@@ -2,6 +2,7 @@
 require 'optparse'
 require 'fileutils'
 require 'yaml'
+require 'zip'
 require_relative '../version.rb'
 require_relative '../lib/functions.rb'
 
@@ -94,9 +95,30 @@ if options[:generate_server]
   req('server', options[:generate_server], options[:generate_server])
 end
 if options[:generate_client]
+  ovpn_files = Dir['*.ovpn']
+  case ovpn_files.length
+  when 1
+    ovpn_file = ovpn_files.first
+  when 0
+    abort "No .ovpn file in current directory, please add one"
+  else
+    abort "More than one .ovpn files in current directory, aborting"
+  end
+
   genrsa('client', options[:generate_client], options[:no_password])
   req('client', options[:generate_client], options[:generate_client])
-  # TODO: pack to `.tblk.zip``
+
+  zip_file = File.expand_path(ZIP_DIR, "#{options[:generate_client]}.tblk.zip")
+  File.delete(zip_file) if File.exist?(zip_file)
+  Zip::File.open(zip_file, Zip::File::CREATE) do |zip|
+    zip.get_output_stream(ovpn_file) {|f|
+      File.open(ovpn_file).each {|line| f.write line}
+      f.write "cert #{options[:generate_client]}.crt\nkey #{options[:generate_client]}.key\n"
+    }
+    [ 'ca.crt', "#{options[:generate_client]}.crt", "#{options[:generate_client]}.key"].each {|i|
+      zip.add(i, i)
+    }
+  end
 end
 if options[:revoke]
   `#{OPENSSL} ca -revoke "#{options[:revoke]}.crt" -config #{SSL_CONF}`
