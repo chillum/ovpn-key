@@ -29,3 +29,18 @@ If you're brave, [let me know](https://github.com/chillum/ovpn-key/issues), wher
    it should contain every setting except for `cert` and `key`
 5. `ovpn-key --client somebody`
 6. `ovpn-key --revoke somebody`
+
+### Configuration
+
+Most of configuration is done in `open-vpn.key` and `openssl.ini` files in the directory.
+
+ovpn-key also processes `~/.ovpn-key.yml` file, for now it has only one possible setting:
+```yaml
+dir: ~/some/path
+```
+
+This setting is used as a default directory if:
+1. current directory does not have `ovpn-key.yml`
+2. `--init` is not specified
+
+If you specify the default directory, you don't need to travel to it every time you want to launch `ovpn-key`, i.e. you can use it from your home directory or any other, as long as requirements above are met.
