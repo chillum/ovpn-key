@@ -36,7 +36,7 @@ Most of configuration is done in `open-vpn.key` and `openssl.ini` files in the d
 
 ovpn-key also processes `~/.ovpn-key.yml` file, for now it has only one possible setting:
 ```yaml
-dir: ~/some/path
+cd: ~/some/path
 ```
 
 This setting is used as a default directory if:

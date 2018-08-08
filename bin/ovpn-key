@@ -73,7 +73,7 @@ elsif !File.exist? 'ovpn-key.yml'
     rc = YAML.load_file(File.expand_path '~/.ovpn-key.yml')
   rescue Errno::ENOENT
   end
-  Dir.chdir File.expand_path(rc['dir']) if rc && rc['dir']
+  Dir.chdir File.expand_path(rc['cd']) if rc && rc['cd']
 end
 
 begin
