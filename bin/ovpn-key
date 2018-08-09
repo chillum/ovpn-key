@@ -13,35 +13,26 @@ options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: #{File.basename $0} <options> [--nopass]"
   opts.on("--init [directory]", "Init a CA directory (defaults to current)") do |v|
-    if v
-      options[:init] = v
-    else
-      options[:init] = "."
-    end
+    options[:init] = v ? v : "."
   end
   opts.on("--ca", "Generate a CA (ca.crt)") do |v|
     check_crt('ca')
     options[:generate_ca] = v
   end
   opts.on("--dh", "Generate a DH keyfile (dh.pem)") do |v|
+    # it's safe to rewrite this file
     options[:generate_dh] = v
   end
   opts.on("--server [name]", "Generate a server key (defaults to 'server')") do |v|
-    if v
-      options[:generate_server] = v
-    else
-      options[:generate_server] = "server"
-    end
+    options[:generate_server] = v ? v : "server"
     check_crt(options[:generate_server])
   end
   opts.on("--client [name]", "Generate a client key and sign it") do |v|
-    abort "Error: client should have an alphanumeric name" unless v
-    check_crt(v)
+    check_client(v)
     options[:generate_client] = v
   end
   opts.on("--zip    [name]", "Ditto plus pack it to ZIP with OpenVPN config") do |v|
-    abort "Error: client should have an alphanumeric name" unless v
-    check_crt(v)
+    check_client(v)
     options[:generate_zip] = v
   end
   opts.on("--revoke [name]", "Revoke a certificate (using crl.pem) and delete it") do |v|
@@ -81,6 +72,7 @@ elsif !File.exist? 'ovpn-key.yml'
   begin
     rc = YAML.load_file(File.expand_path '~/.ovpn-key.yml')
   rescue Errno::ENOENT
+    # no configuration file in home directory is not an error
   end
   Dir.chdir File.expand_path(rc['cd']) if rc && rc['cd']
 end
@@ -98,20 +90,18 @@ CN_CA    = settings['ca_name']  || 'Certification Authority'
 REQ      = settings['details']
 
 if options[:generate_ca]
-  genrsa('ca', 'ca', options[:no_password])
-  req('ca', 'ca', CN_CA)
+  gen_key('ca', 'ca', options[:no_password])
+  sign_key('ca', 'ca', CN_CA)
   gen_crl
 end
 if options[:generate_dh]
   exe "#{OPENSSL} dhparam -out dh.pem #{KEY_SIZE}"
 end
 if options[:generate_server]
-  genrsa('server', options[:generate_server], options[:no_password])
-  req('server', options[:generate_server], options[:generate_server])
+  gen_and_sign('server', options[:generate_server], options[:no_password])
 end
 if options[:generate_client]
-  genrsa('client', options[:generate_client], options[:no_password])
-  req('client', options[:generate_client], options[:generate_client])
+  gen_and_sign('client', options[:generate_client], options[:no_password])
 end
 if options[:generate_zip]
   ovpn_files = Dir['*.ovpn']
@@ -124,8 +114,7 @@ if options[:generate_zip]
     abort "More than one .ovpn files in current directory, aborting"
   end
 
-  genrsa('client', options[:generate_zip], options[:no_password])
-  req('client', options[:generate_zip], options[:generate_zip])
+  gen_and_sign('client', options[:generate_zip], options[:no_password])
 
   zip_file = File.join(File.expand_path(ZIP_DIR), "#{File.basename ovpn_file, '.ovpn'}.tblk.zip")
   File.delete(zip_file) if File.exist?(zip_file)

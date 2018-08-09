@@ -4,11 +4,21 @@ def check_crt filename
   }
 end
 
+def check_client name
+  abort "Error: client should have an alphanumeric name" unless name
+  check_crt(name)
+end
+
 def exe cmd
   system(cmd) or abort "error executing: #{cmd}"
 end
 
-def genrsa type, certname, no_password
+def gen_and_sign type, certname, no_password
+  gen_key(type, certname, no_password)
+  sign_key(type, certname, certname)
+end
+
+def gen_key type, certname, no_password
   if no_password
     exe "#{OPENSSL} genrsa -out '#{certname}.key' #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}"
   else
@@ -16,7 +26,7 @@ def genrsa type, certname, no_password
   end
 end
 
-def req type, certname, cn
+def sign_key type, certname, cn
   if certname == 'ca'
     exe "#{OPENSSL} req -new -x509 -key '#{certname}.key' -out '#{certname}.crt' -config #{SSL_CONF} -subj '/CN=#{cn}#{REQ}' -extensions ext.#{type}"
   else
