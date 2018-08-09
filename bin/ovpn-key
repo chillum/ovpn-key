@@ -34,10 +34,15 @@ OptionParser.new do |opts|
     end
     check_crt(options[:generate_server])
   end
-  opts.on("--client [name]", "Generate a client key and pack it to ZIP") do |v|
+  opts.on("--client [name]", "Generate a client key and sign it") do |v|
     abort "Error: client should have an alphanumeric name" unless v
     check_crt(v)
     options[:generate_client] = v
+  end
+  opts.on("--zip    [name]", "Ditto plus pack it to ZIP with OpenVPN config") do |v|
+    abort "Error: client should have an alphanumeric name" unless v
+    check_crt(v)
+    options[:generate_zip] = v
   end
   opts.on("--revoke [name]", "Revoke a certificate (using crl.pem) and delete it") do |v|
     abort "Please specify what certificate to revoke" unless v
@@ -50,9 +55,13 @@ end.parse!
 if ARGV.length > 0
   abort "Error: invalid args: #{ARGV.join ' '}\nSee `#{File.basename $0} -h` for help"
 end
-unless options[:init] || options[:generate_ca] || options[:generate_dh] \
-  || options[:generate_server] || options[:generate_client] || options[:revoke]
+unless options[:init] || options[:generate_ca] || options[:generate_dh] || options[:generate_server] \
+  || options[:generate_client] || options[:generate_zip] || options[:revoke]
   abort "See `#{File.basename $0} -h` for usage"
+end
+if options[:generate_client] and options[:generate_zip]
+  # I assume that user likely wants one of them and is confused with usage
+  abort "There can be only one: --client or --zip"
 end
 File.umask 0077
 
@@ -101,6 +110,10 @@ if options[:generate_server]
   req('server', options[:generate_server], options[:generate_server])
 end
 if options[:generate_client]
+  genrsa('client', options[:generate_client], options[:no_password])
+  req('client', options[:generate_client], options[:generate_client])
+end
+if options[:generate_zip]
   ovpn_files = Dir['*.ovpn']
   case ovpn_files.length
   when 1
@@ -111,17 +124,17 @@ if options[:generate_client]
     abort "More than one .ovpn files in current directory, aborting"
   end
 
-  genrsa('client', options[:generate_client], options[:no_password])
-  req('client', options[:generate_client], options[:generate_client])
+  genrsa('client', options[:generate_zip], options[:no_password])
+  req('client', options[:generate_zip], options[:generate_zip])
 
   zip_file = File.join(File.expand_path(ZIP_DIR), "#{File.basename ovpn_file, '.ovpn'}.tblk.zip")
   File.delete(zip_file) if File.exist?(zip_file)
   Zip::File.open(zip_file, Zip::File::CREATE) do |zip|
     zip.get_output_stream(ovpn_file) {|f|
       File.open(ovpn_file).each {|line| f.write line}
-      f.write "cert #{options[:generate_client]}.crt\nkey #{options[:generate_client]}.key\n"
+      f.write "cert #{options[:generate_zip]}.crt\nkey #{options[:generate_zip]}.key\n"
     }
-    [ 'ca.crt', "#{options[:generate_client]}.crt", "#{options[:generate_client]}.key"].each {|i|
+    [ 'ca.crt', "#{options[:generate_zip]}.crt", "#{options[:generate_zip]}.key"].each {|i|
       zip.add(i, i)
     }
   end
