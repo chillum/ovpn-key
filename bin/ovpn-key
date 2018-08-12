@@ -23,6 +23,10 @@ OptionParser.new do |opts|
     # it's safe to overwrite this file
     options[:generate_dh] = v
   end
+  opts.on("--static [name]", "Generate OpenVPN static key (defaults to 'ta')") do |v|
+    options[:generate_static] = v ? v : "ta"
+    check_crt(options[:generate_static])
+  end
   opts.on("--server [name]", "Generate a server key (defaults to 'server')") do |v|
     options[:generate_server] = v ? v : "server"
     check_crt(options[:generate_server])
@@ -46,8 +50,8 @@ end.parse!
 if ARGV.length > 0
   abort "Error: invalid args: #{ARGV.join ' '}\nSee `#{File.basename $0} -h` for help"
 end
-unless options[:init] || options[:generate_ca] || options[:generate_dh] || options[:generate_server] \
-  || options[:generate_client] || options[:generate_zip] || options[:revoke]
+unless options[:init] || options[:generate_ca] || options[:generate_dh] || options[:generate_static] \
+  || options[:generate_server] || options[:generate_client] || options[:generate_zip] || options[:revoke]
   abort "See `#{File.basename $0} -h` for usage"
 end
 if options[:generate_client] and options[:generate_zip]
@@ -83,6 +87,7 @@ rescue Errno::ENOENT
   abort "Run `#{File.basename $0} --init` before generating certificates"
 end
 ZIP_DIR  = settings['zip_dir']  || '~'
+OPENVPN  = settings['openvpn']  || 'openvpn'
 OPENSSL  = settings['openssl']  || 'openssl'
 KEY_SIZE = settings['key_size'] || 2048
 ENCRYPT  = settings['encrypt']  || 'aes128'
@@ -96,6 +101,9 @@ if options[:generate_ca]
 end
 if options[:generate_dh]
   exe "#{OPENSSL} dhparam -out dh.pem #{KEY_SIZE}"
+end
+if options[:generate_static]
+  exe "#{OPENVPN} --genkey --secret '#{options[:generate_static]}.key'"
 end
 if options[:generate_server]
   gen_and_sign('server', options[:generate_server], options[:no_password])
@@ -127,6 +135,7 @@ if options[:generate_zip]
     [ 'ca.crt', "#{options[:generate_zip]}.crt", "#{options[:generate_zip]}.key"].each {|i|
       zip.add(i, i)
     }
+    # TODO: include TLS key if specified in config with tls-auth/tls-crypt
   end
 end
 if options[:revoke]

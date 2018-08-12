@@ -5,7 +5,7 @@ Gem::Specification.new do |s|
   s.name         = 'ovpn-key'
   s.version      = ::Version
   s.summary      = 'Key management utility for OpenVPN'
-  s.description  = ''
+  s.description  = 'Generates and revokes certificates, also packs them to ZIP files with OpenVPN configuration'
   s.homepage     = 'https://github.com/chillum/ovpn-key'
   s.license      = 'Apache-2.0'
   s.author       = 'Vasily Korytov'

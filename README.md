@@ -12,9 +12,12 @@ It supports encrypting `.key` files with a passphrase (there is an option to dis
 
 It can be used with a non-self signed CA, just place your `ca.key` and `ca.crt` in the keys directory and skip the `--ca` step.
 
-It can be used to manage a non-OpenVPN CA, in that case `--zip` step will be useless, but all others will work.
+It can be used to manage a non-OpenVPN CA, in that case `--zip` and `--static` steps will be useless, but all others will work.
 
-For now it should be considered experimental and rather undocumented.  
+OpenVPN static keys are supported partially, as they should be used for `tls-auth`/`tls-crypt` only.
+Please note that they are not encrypted regardless of `--nopass` option.
+
+For now this utility should be considered experimental and rather undocumented.  
 If you're brave, [let me know](https://github.com/chillum/ovpn-key/issues), where the problems are.
 
 ### Installation
@@ -27,11 +30,12 @@ If you're brave, [let me know](https://github.com/chillum/ovpn-key/issues), wher
 1. `ovpn-key --init`
 2. edit `ovpn-key.yml` and `openssl.ini`
 3. `ovpn-key --ca --dh --server --nopass`
-4. `ovpn-key --client somebody`
+4. `ovpn-key --client somebody [--nopass]`
 5. `ovpn-key --revoke somebody`
 6. add a file with `.ovpn` extension to the directory  
    it should contain every setting except for `cert` and `key`
-7. `ovpn-key --zip somebody-else`
+7. `ovpn-key --zip somebody-else [--nopass]`
+8. `ovpn-key --static` (generates `ta.key`)
 
 ### Configuration
 
