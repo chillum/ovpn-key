@@ -20,7 +20,7 @@ OptionParser.new do |opts|
     options[:generate_ca] = v
   end
   opts.on("--dh", "Generate a DH keyfile (dh.pem)") do |v|
-    # it's safe to rewrite this file
+    # it's safe to overwrite this file
     options[:generate_dh] = v
   end
   opts.on("--server [name]", "Generate a server key (defaults to 'server')") do |v|
@@ -68,9 +68,9 @@ if options[:init]
       puts "Created file: #{file}"
     end
   }
-elsif !File.exist? 'ovpn-key.yml'
+elsif !File.exist? APP_CONF
   begin
-    rc = YAML.load_file(File.expand_path '~/.ovpn-key.yml')
+    rc = YAML.load_file(File.expand_path "~/.#{APP_CONF}")
   rescue Errno::ENOENT
     # no configuration file in home directory is not an error
   end
