@@ -14,11 +14,11 @@ def exe cmd
 end
 
 def gen_and_sign type, certname, no_password
-  gen_key(type, certname, no_password)
+  gen_key(certname, no_password)
   sign_key(type, certname, certname)
 end
 
-def gen_key type, certname, no_password
+def gen_key certname, no_password
   if no_password
     exe "#{OPENSSL} genrsa -out '#{certname}.key' #{KEY_SIZE}"
   else

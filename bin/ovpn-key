@@ -95,7 +95,7 @@ CN_CA    = settings['ca_name']  || 'Certification Authority'
 REQ      = settings['details']
 
 if options[:generate_ca]
-  gen_key('ca', 'ca', options[:no_password])
+  gen_key('ca', options[:no_password])
   sign_key('ca', 'ca', CN_CA)
   gen_crl
 end
