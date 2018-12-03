@@ -20,9 +20,9 @@ end
 
 def gen_key type, certname, no_password
   if no_password
-    exe "#{OPENSSL} genrsa -out '#{certname}.key' #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}"
+    exe "#{OPENSSL} genrsa -out '#{certname}.key' #{KEY_SIZE}"
   else
-    exe "#{OPENSSL} genrsa -#{ENCRYPT} -out '#{certname}.key' #{KEY_SIZE} -config #{SSL_CONF} -extensions ext.#{type}"
+    exe "#{OPENSSL} genrsa -#{ENCRYPT} -out '#{certname}.key' #{KEY_SIZE}"
   end
 end
 
