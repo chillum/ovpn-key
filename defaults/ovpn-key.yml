@@ -3,5 +3,6 @@ openvpn:  openvpn
 openssl:  openssl
 key_size: 2048
 encrypt:  aes128
+ca_days:  3650
 ca_name:  Certification Authority
 details:  /C=US/ST=CA/L=San Francisco/O=Dva Debila/OU=OpenVPN

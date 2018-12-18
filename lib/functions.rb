@@ -28,7 +28,7 @@ end
 
 def sign_key type, certname, cn
   if certname == 'ca'
-    exe "#{OPENSSL} req -new -x509 -key '#{certname}.key' -out '#{certname}.crt' -config #{SSL_CONF} -subj '/CN=#{cn}#{REQ}' -extensions ext.#{type}"
+    exe "#{OPENSSL} req -new -x509 -key '#{certname}.key' -out '#{certname}.crt' -config #{SSL_CONF} -subj '/CN=#{cn}#{REQ}' -extensions ext.#{type} -days #{CA_DAYS}"
   else
     exe "#{OPENSSL} req -new -key '#{certname}.key' -out '#{certname}.csr' -config #{SSL_CONF} -subj '/CN=#{cn}#{REQ}' -extensions ext.#{type}"
     exe "#{OPENSSL} ca -in '#{certname}.csr' -out '#{certname}.crt' -config #{SSL_CONF} -extensions ext.#{type} -batch"

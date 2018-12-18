@@ -32,10 +32,10 @@ If you're brave, [let me know](https://github.com/chillum/ovpn-key/issues), wher
 3. `ovpn-key --ca --dh --server --nopass`
 4. `ovpn-key --client somebody [--nopass]`
 5. `ovpn-key --revoke somebody`
-6. add a file with `.ovpn` extension to the directory  
+6. `ovpn-key --static` (generates `ta.key`)
+7. add a file with `.ovpn` extension to the directory  
    it should contain every setting except for `cert` and `key`
-7. `ovpn-key --zip somebody-else [--nopass]`
-8. `ovpn-key --static` (generates `ta.key`)
+8. `ovpn-key --zip somebody-else [--nopass]`
 
 ### Configuration
 
