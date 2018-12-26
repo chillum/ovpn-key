@@ -89,8 +89,8 @@ end
 ZIP_DIR  = settings['zip_dir']  || '~'
 OPENVPN  = settings['openvpn']  || 'openvpn'
 OPENSSL  = settings['openssl']  || 'openssl'
-KEY_SIZE = settings['key_size'] || 2048
 ENCRYPT  = settings['encrypt']  || 'aes128'
+KEY_SIZE = settings['key_size'] || 2048
 CA_DAYS  = settings['ca_days']  || 3650
 CN_CA    = settings['ca_name']  || 'Certification Authority'
 REQ      = settings['details']
