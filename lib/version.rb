@@ -1,1 +1,3 @@
-::Version = '0.7.5'
+# frozen_string_literal: true
+
+::VERSION = '0.7.6'

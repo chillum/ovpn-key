@@ -1,71 +1,73 @@
 #! /usr/bin/env ruby
+# frozen_string_literal: true
+
 require 'optparse'
 require 'fileutils'
 require 'yaml'
 require 'zip'
-require_relative '../lib/version.rb'
-require_relative '../lib/functions.rb'
+require_relative '../lib/version'
+require_relative '../lib/functions'
 
 SSL_CONF = 'openssl.ini'
 APP_CONF = 'ovpn-key.yml'
 
 options = {}
 OptionParser.new do |opts|
-  opts.banner = "Usage: #{File.basename $0} <options> [--nopass]"
-  opts.on("--init [directory]", "Init a CA directory (defaults to current)") do |v|
-    options[:init] = v ? v : "."
+  opts.banner = "Usage: #{File.basename $PROGRAM_NAME} <options> [--nopass]"
+  opts.on('--init [directory]', 'Init a CA directory (defaults to current)') do |v|
+    options[:init] = v || '.'
   end
-  opts.on("--ca", "Generate a CA (ca.crt)") do |v|
+  opts.on('--ca', 'Generate a CA (ca.crt)') do |v|
     check_crt('ca')
     options[:generate_ca] = v
   end
-  opts.on("--dh", "Generate a DH keyfile (dh.pem)") do |v|
+  opts.on('--dh', 'Generate a DH keyfile (dh.pem)') do |v|
     # it's safe to overwrite this file
     options[:generate_dh] = v
   end
-  opts.on("--static", "Generate OpenVPN static key (ta.key)") do |v|
+  opts.on('--static', 'Generate OpenVPN static key (ta.key)') do |v|
     options[:generate_static] = v
-    check_crt("ta")
+    check_crt('ta')
   end
-  opts.on("--server [name]", "Generate a server key (defaults to 'server')") do |v|
-    options[:generate_server] = v ? v : "server"
+  opts.on('--server [name]', "Generate a server key (defaults to 'server')") do |v|
+    options[:generate_server] = v || 'server'
     check_crt(options[:generate_server])
   end
-  opts.on("--client [name]", "Generate a client key and sign it") do |v|
+  opts.on('--client [name]', 'Generate a client key and sign it') do |v|
     check_client(v)
     options[:generate_client] = v
   end
-  opts.on("--zip    [name]", "Ditto plus pack it to ZIP with OpenVPN config") do |v|
+  opts.on('--zip    [name]', 'Ditto plus pack it to ZIP with OpenVPN config') do |v|
     check_client(v)
     options[:generate_zip] = v
   end
-  opts.on("--revoke [name]", "Revoke a certificate (using crl.pem) and delete it") do |v|
-    abort "Please specify what certificate to revoke" unless v
+  opts.on('--revoke [name]', 'Revoke a certificate (using crl.pem) and delete it') do |v|
+    abort 'Please specify what certificate to revoke' unless v
     options[:revoke] = v
   end
-  opts.on("--nopass", "Don't protect .key files with a password") do |v|
+  opts.on('--nopass', "Don't protect .key files with a password") do |v|
     options[:no_password] = v
   end
 end.parse!
-if ARGV.length > 0
-  abort "Error: invalid args: #{ARGV.join ' '}\nSee `#{File.basename $0} -h` for help"
+if ARGV.length.positive?
+  abort "Error: invalid args: #{ARGV.join ' '}\nSee `#{File.basename $PROGRAM_NAME} -h` for help"
 end
 unless options[:init] || options[:generate_ca] || options[:generate_dh] || options[:generate_static] \
   || options[:generate_server] || options[:generate_client] || options[:generate_zip] || options[:revoke]
-  abort "See `#{File.basename $0} -h` for usage"
+  abort "See `#{File.basename $PROGRAM_NAME} -h` for usage"
 end
-if options[:generate_client] and options[:generate_zip]
+if options[:generate_client] && options[:generate_zip]
   # I assume that user likely wants one of them and is confused with usage
-  abort "There can be only one: --client or --zip"
+  abort 'There can be only one: --client or --zip'
 end
-umask = File.umask 0077
+umask = File.umask 0o077
 
 if options[:init]
   unless options[:init] == '.'
     create_dir options[:init]
     Dir.chdir options[:init]
   end
-  ['certs', 'meta'].each {|dir| create_dir dir}
+  %w[certs meta].each {|dir| create_dir dir}
   ['meta/index.txt', 'meta/index.txt.attr', 'meta/serial', SSL_CONF, APP_CONF].each {|file|
     unless File.exist? file
       FileUtils.copy_file(File.expand_path("defaults/#{file}", "#{__dir__}/.."), "./#{file}")
@@ -74,7 +76,7 @@ if options[:init]
   }
 elsif !File.exist? APP_CONF
   begin
-    rc = YAML.load_file(File.expand_path "~/.#{APP_CONF}")
+    rc = YAML.load_file(File.expand_path("~/.#{APP_CONF}"))
   rescue Errno::ENOENT
     # no configuration file in home directory is not an error
   end
@@ -84,7 +86,7 @@ end
 begin
   settings = YAML.load_file(APP_CONF)
 rescue Errno::ENOENT
-  abort "Run `#{File.basename $0} --init` before generating certificates"
+  abort "Run `#{File.basename $PROGRAM_NAME} --init` before generating certificates"
 end
 ZIP_DIR  = settings['zip_dir']  || '~'
 OPENVPN  = settings['openvpn']  || 'openvpn'
@@ -118,9 +120,9 @@ if options[:generate_zip]
   when 1
     ovpn_file = ovpn_files.first
   when 0
-    abort "No .ovpn file in current directory, please add one"
+    abort 'No .ovpn file in current directory, please add one'
   else
-    abort "More than one .ovpn files in current directory, aborting"
+    abort 'More than one .ovpn files in current directory, aborting'
   end
 
   gen_and_sign('client', options[:generate_zip], options[:no_password])
@@ -133,7 +135,7 @@ if options[:generate_zip]
       File.open(ovpn_file).each {|line| f.write line}
       f.write "cert #{options[:generate_zip]}.crt\nkey #{options[:generate_zip]}.key\n"
     }
-    [ 'ca.crt', "#{options[:generate_zip]}.crt", "#{options[:generate_zip]}.key"].each {|i|
+    ['ca.crt', "#{options[:generate_zip]}.crt", "#{options[:generate_zip]}.key"].each {|i|
       zip.add(i, i)
     }
     zip.add('ta.key', 'ta.key') if File.exist? 'ta.key'
@@ -142,5 +144,5 @@ end
 if options[:revoke]
   exe "#{OPENSSL} ca -revoke '#{options[:revoke]}.crt' -config #{SSL_CONF}"
   gen_crl
-  ['crt', 'key'].each {|ext| File.delete "#{options[:revoke]}.#{ext}"}
+  %w[crt key].each {|ext| File.delete "#{options[:revoke]}.#{ext}"}
 end

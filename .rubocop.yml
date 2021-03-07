@@ -1,0 +1,13 @@
+Style/BlockDelimiters:
+  Enabled: false
+Layout/SpaceInsideBlockBraces:
+  Enabled: false
+Style/IfUnlessModifier:
+  Enabled: false
+Naming/MethodParameterName:
+  Enabled: false
+Metrics/LineLength:
+  Max: 125
+AllCops:
+  TargetRubyVersion: 2.4
+  NewCops: enable

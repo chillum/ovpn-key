@@ -1,24 +1,26 @@
-def check_crt filename
-  ['key', 'crt'].each {|ext|
+# frozen_string_literal: true
+
+def check_crt(filename)
+  %w[key crt].each {|ext|
     abort "#{filename}.#{ext} already exists, exiting" if File.exist? "#{filename}.#{ext}"
   }
 end
 
-def check_client name
-  abort "Error: client should have an alphanumeric name" unless name
+def check_client(name)
+  abort 'Error: client should have an alphanumeric name' unless name
   check_crt(name)
 end
 
-def exe cmd
+def exe(cmd)
   system(cmd) or abort "error executing: #{cmd}"
 end
 
-def gen_and_sign type, certname, no_password
+def gen_and_sign(type, certname, no_password)
   gen_key(certname, no_password)
   sign_key(type, certname, certname)
 end
 
-def gen_key certname, no_password
+def gen_key(certname, no_password)
   if no_password
     exe "#{OPENSSL} genrsa -out '#{certname}.key' #{KEY_SIZE}"
   else
@@ -26,7 +28,7 @@ def gen_key certname, no_password
   end
 end
 
-def sign_key type, certname, cn
+def sign_key(type, certname, cn)
   if certname == 'ca'
     exe "#{OPENSSL} req -new -x509 -key '#{certname}.key' -out '#{certname}.crt' -config #{SSL_CONF} -subj '/CN=#{cn}#{REQ}' -extensions ext.#{type} -days #{CA_DAYS}"
   else
@@ -40,9 +42,9 @@ def gen_crl
   exe "#{OPENSSL} ca -gencrl -out crl.pem -config #{SSL_CONF}"
 end
 
-def create_dir name
-  unless Dir.exist? name
-    Dir.mkdir name
-    puts "Created directory: #{name}"
-  end
+def create_dir(name)
+  return if Dir.exist? name
+
+  Dir.mkdir name
+  puts "Created directory: #{name}"
 end
