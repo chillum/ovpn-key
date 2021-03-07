@@ -6,7 +6,7 @@ Style/IfUnlessModifier:
   Enabled: false
 Naming/MethodParameterName:
   Enabled: false
-Metrics/LineLength:
+Layout/LineLength:
   Max: 125
 AllCops:
   TargetRubyVersion: 2.4

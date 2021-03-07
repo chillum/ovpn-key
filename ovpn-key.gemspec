@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.homepage     = 'https://github.com/chillum/ovpn-key'
   s.license      = 'Apache-2.0'
   s.author       = 'Vasily Korytov'
-  s.email        = 'vasily.korytov@icloud.com'
+  s.email        = 'v.korytov@outlook.com'
   s.files        = FileList[%w[NOTICE README.md lib/version.rb lib/functions.rb defaults/* defaults/meta/*]]
   s.executables << 'ovpn-key'
   s.add_dependency 'rubyzip', '~> 2.0'
