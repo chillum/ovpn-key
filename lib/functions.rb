@@ -26,11 +26,11 @@ def ask_password(name)
   password
 end
 
-def unencrypt_ca_key
+def unencrypt_ca_key(pass = '')
   begin
-    OpenSSL::PKey::RSA.new File.read('ca.key'), ''
+    OpenSSL::PKey::RSA.new File.read('ca.key'), pass
   rescue OpenSSL::PKey::RSAError
-    # this means the file is encrypted
+    # this means the file is encrypted or pass is wrong
     OpenSSL::PKey::RSA.new File.read('ca.key'), ask_password('ca')
   end
 rescue OpenSSL::PKey::RSAError
@@ -127,7 +127,7 @@ def revoke(certname)
   crl.next_update = Time.now + EXPIRE['crl'] * 86_400 # days to seconds
   crl.add_revoked(revoke)
   begin
-    update_crl(crl, ask_password('ca'))
+    update_crl(crl, '')
   rescue OpenSSL::PKey::RSAError
     retry
   end
@@ -146,7 +146,7 @@ end
 # rubocop:disable Metrics/AbcSize
 def update_crl(crl, ca_pass)
   # rubocop:enable Metrics/AbcSize
-  ca_key = OpenSSL::PKey::RSA.new File.read('ca.key'), ca_pass
+  ca_key = unencrypt_ca_key(ca_pass)
   crl.last_update = Time.now
   crl.next_update = Time.now + EXPIRE['crl'] * 86_400 # days to seconds
   crl.sign(ca_key, OpenSSL::Digest.new(DIGEST))
