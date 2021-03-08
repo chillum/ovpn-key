@@ -4,6 +4,8 @@ Layout/SpaceInsideBlockBraces:
   Enabled: false
 Style/IfUnlessModifier:
   Enabled: false
+Naming/MethodParameterName:
+  Enabled: false
 Layout/LineLength:
   Max: 125
 AllCops:

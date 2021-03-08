@@ -15,7 +15,9 @@ CRL_FILE = 'crl.pem'
 SERIAL_FILE = 'serial'
 
 options = {}
+# rubocop:disable Metrics/BlockLength
 OptionParser.new do |opts|
+  # rubocop:enable Metrics/BlockLength
   opts.banner = "Usage: #{File.basename $PROGRAM_NAME} <options> [--nopass]"
   opts.on('--init [directory]', 'Init a CA directory (defaults to current)') do |v|
     options[:init] = v || '.'
