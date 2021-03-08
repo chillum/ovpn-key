@@ -95,51 +95,13 @@ DIGEST   = settings['digest']   || 'sha256'
 KEY_SIZE = settings['key_size'] || 2048
 CN_CA    = settings['ca_name']  || 'Certification Authority'
 
-unless settings['ca_days'].nil?
-  if settings['expire'].nil?
-    puts 'Migrating pre-0.8 configuration to new format: ca_days'
-    puts "WARNING: if you tweaked `default_days` or `default_days_crl` in #{SSL_CONF}, edit #{APP_CONF}"
-    File.open(APP_CONF, 'a') do |f|
-      f.write "# ca_days is not used anymore, you can remove it\nexpire:\n"
-      f.write "  ca:     #{settings['ca_days']}\n  crl:    3650\n  server: 3650\n  client: 3650\n"
-    end
-  else
-    puts "WARNING: `ca_days` setting is deprecated, remove it from #{APP_CONF}"
-  end
-end
-
 settings['expire']           ||= {}
 settings['expire']['ca']     ||= settings['ca_days'] || 3650
 settings['expire']['crl']    ||= 3650
 settings['expire']['server'] ||= 3650
 settings['expire']['client'] ||= 3650
 EXPIRE = settings['expire']
-
-if settings['x509'].nil? && !settings['details'].nil?
-  puts 'Migrating pre-0.8 configuration to new format: details'
-  REQ = OpenSSL::X509::Name.parse(settings['details']).to_a
-  File.open(APP_CONF, 'a') do |f|
-    f.write "# details is not used anymore, you can remove it\nx509:\n"
-    REQ.map {|i, j| f.write "  #{i}: #{j}\n" }
-  end
-else
-  REQ = settings['x509']
-  puts "WARNING: `details` section is deprecated, remove it from #{APP_CONF}" unless settings['details'].nil?
-end
-if settings['openssl']
-  puts "WARNING: `openssl` setting is deprecated, remove it from #{APP_CONF}"
-end
-
-if !File.exist?(SERIAL_FILE) && File.exist?('meta/serial')
-  FileUtils.copy_file('meta/serial', SERIAL_FILE)
-  puts 'Copied meta/serial to serial'
-end
-%w[certs meta].each {|dir|
-  puts "WARNING: #{dir} directory is not used anymore. you can remove it" if File.exist? dir
-}
-if File.exist? 'openssl.ini'
-  puts 'WARNING: openssl.ini file is not used anymore. you can remove it'
-end
+REQ    = settings['x509']
 
 if options[:generate_ca]
   ca_pass = options[:no_password] ? nil : ask_password('ca')
