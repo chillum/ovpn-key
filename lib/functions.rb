@@ -26,6 +26,12 @@ def ask_password(name)
   password
 end
 
+def unencrypt_ca_key
+  OpenSSL::PKey::RSA.new File.read('ca.key'), ask_password('ca')
+rescue OpenSSL::PKey::RSAError
+  retry
+end
+
 def gen_and_sign(type, certname, password)
   gen_key(certname, password)
   sign_key(type, certname, password)
@@ -39,36 +45,47 @@ def gen_key(certname, password)
 end
 
 # type is one of: 'ca', 'server', 'client'
-# rubocop:disable Naming/MethodParameterName
 def sign_key(type, cn, password)
-  # rubocop:enable Naming/MethodParameterName
   certname = type == 'ca' ? 'ca' : cn
   key = OpenSSL::PKey::RSA.new File.read("#{certname}.key"), password
-  subj = OpenSSL::X509::Name.new([['CN', cn]] + REQ.to_a)
-  serial = begin
-    File.read(SERIAL_FILE).to_i
-  rescue Errno::ENOENT
-    0
-  end + 1
+  serial = new_serial
+  cert = gen_cert(type, cn, key, serial)
 
-  cert = OpenSSL::X509::Certificate.new
-  cert.version = 2
-  cert.serial = serial
-  cert.not_before = Time.now
-  cert.not_after =
-    Time.now +
-    case type
-    when 'ca'
-      EXPIRE['ca']
-    when 'server'
-      EXPIRE['server']
-    when 'client'
-      EXPIRE['client']
-      # days to seconds
-    end * 86_400
+  ca_key = type == 'ca' ? key : unencrypt_ca_key
+  cert.sign ca_key, OpenSSL::Digest.new(DIGEST)
+
+  File.open(SERIAL_FILE, 'w') {|f| f.write serial }
+  File.open("#{certname}.crt", 'w') {|f| f.write cert.to_pem }
+end
+
+def gen_cert(type, cn, key, serial)
+  cert = basic_cert(cn)
   cert.public_key = key.public_key
+  cert.serial = serial
+
+  customize_cert(cert, type)
+end
+
+# rubocop:disable Metrics/AbcSize
+def basic_cert(cn)
+  # rubocop:enable Metrics/AbcSize
+  subj = OpenSSL::X509::Name.new([['CN', cn]] + REQ.to_a)
+  cert = OpenSSL::X509::Certificate.new
+
+  cert.version = 2
   cert.subject = subj
   cert.issuer = OpenSSL::X509::Name.new([['CN', CN_CA]] + REQ.to_a)
+  cert.not_before = Time.now
+  cert.not_after = Time.now + EXPIRE[type] * 86_400 # days to seconds
+
+  cert
+end
+
+# rubocop:disable Metrics/MethodLength
+# rubocop:disable Metrics/AbcSize
+def customize_cert(cert, type)
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
 
   ef = OpenSSL::X509::ExtensionFactory.new nil, cert
   ef.issuer_certificate = cert
@@ -80,7 +97,6 @@ def sign_key(type, cn, password)
   case type
   when 'ca'
     cert.add_extension ef.create_extension('keyUsage', 'cRLSign,keyCertSign')
-    cert.sign key, OpenSSL::Digest.new(DIGEST)
   when 'server'
     cert.add_extension ef.create_extension('keyUsage', 'keyEncipherment,digitalSignature')
     cert.add_extension ef.create_extension('extendedKeyUsage', 'serverAuth')
@@ -88,20 +104,15 @@ def sign_key(type, cn, password)
     cert.add_extension ef.create_extension('keyUsage', 'digitalSignature')
     cert.add_extension ef.create_extension('extendedKeyUsage', 'clientAuth')
   end
-  unless type == 'ca'
-    ca_key = begin
-      OpenSSL::PKey::RSA.new File.read('ca.key'), ask_password('ca')
-    rescue OpenSSL::PKey::RSAError
-      retry
-    end
-    cert.sign ca_key, OpenSSL::Digest.new(DIGEST)
-  end
 
-  File.open(SERIAL_FILE, 'w') {|f| f.write serial }
-  File.open("#{certname}.crt", 'w') {|f| f.write cert.to_pem }
+  cert
 end
 
+# rubocop:disable Metrics/AbcSize
+# rubocop:disable Metrics/MethodLength
 def revoke(certname)
+  # rubocop:enable Metrics/AbcSize
+  # rubocop:enable Metrics/MethodLength
   crl = OpenSSL::X509::CRL.new(File.read(CRL_FILE))
   cert = OpenSSL::X509::Certificate.new(File.read("#{certname}.crt"))
   revoke = OpenSSL::X509::Revoked.new.tap {|rev|
@@ -127,13 +138,23 @@ def gen_crl(ca_pass)
   update_crl(crl, ca_pass)
 end
 
+# rubocop:disable Metrics/AbcSize
 def update_crl(crl, ca_pass)
+  # rubocop:enable Metrics/AbcSize
   ca_key = OpenSSL::PKey::RSA.new File.read('ca.key'), ca_pass
   crl.last_update = Time.now
   crl.next_update = Time.now + EXPIRE['crl'] * 86_400 # days to seconds
   crl.version = crl.version + 1
   crl.sign(ca_key, OpenSSL::Digest.new(DIGEST))
   File.open(CRL_FILE, 'w') {|f| f.write crl.to_pem }
+end
+
+def new_serial
+  begin
+    File.read(SERIAL_FILE).to_i
+  rescue Errno::ENOENT
+    0
+  end + 1
 end
 
 def create_dir(name)
