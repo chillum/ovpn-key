@@ -15,5 +15,5 @@ Gem::Specification.new do |s|
   s.files        = FileList[%w[NOTICE README.md lib/version.rb lib/functions.rb defaults/* defaults/meta/*]]
   s.executables << 'ovpn-key'
   s.add_dependency 'rubyzip', '~> 2.0'
-  s.required_ruby_version = '>= 2.0'
+  s.required_ruby_version = '>= 2.4'
 end
