@@ -27,7 +27,12 @@ def ask_password(name)
 end
 
 def unencrypt_ca_key
-  OpenSSL::PKey::RSA.new File.read('ca.key'), ask_password('ca')
+  begin
+    OpenSSL::PKey::RSA.new File.read('ca.key'), ''
+  rescue OpenSSL::PKey::RSAError
+    # this means the file is encrypted
+    OpenSSL::PKey::RSA.new File.read('ca.key'), ask_password('ca')
+  end
 rescue OpenSSL::PKey::RSAError
   retry
 end
@@ -59,15 +64,15 @@ def sign_key(type, cn, password)
 end
 
 def gen_cert(type, cn, key, serial)
-  cert = basic_cert(cn)
+  cert = basic_cert(type, cn)
   cert.public_key = key.public_key
   cert.serial = serial
 
-  customize_cert(cert, type)
+  customize_cert(type, cert)
 end
 
 # rubocop:disable Metrics/AbcSize
-def basic_cert(cn)
+def basic_cert(type, cn)
   # rubocop:enable Metrics/AbcSize
   subj = OpenSSL::X509::Name.new([['CN', cn]] + REQ.to_a)
   cert = OpenSSL::X509::Certificate.new
@@ -83,7 +88,7 @@ end
 
 # rubocop:disable Metrics/MethodLength
 # rubocop:disable Metrics/AbcSize
-def customize_cert(cert, type)
+def customize_cert(type, cert)
   # rubocop:enable Metrics/AbcSize
   # rubocop:enable Metrics/MethodLength
 
