@@ -146,11 +146,9 @@ def update_crl(crl, ca_pass)
 end
 
 def new_serial
-  begin
-    File.read(SERIAL_FILE).to_i
-  rescue Errno::ENOENT
-    0
-  end + 1
+  File.read(SERIAL_FILE).to_i + 1
+rescue Errno::ENOENT
+  0
 end
 
 def create_dir(name)
