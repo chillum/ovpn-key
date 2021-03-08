@@ -149,7 +149,6 @@ def update_crl(crl, ca_pass)
   ca_key = OpenSSL::PKey::RSA.new File.read('ca.key'), ca_pass
   crl.last_update = Time.now
   crl.next_update = Time.now + EXPIRE['crl'] * 86_400 # days to seconds
-  crl.version = crl.version + 1
   crl.sign(ca_key, OpenSSL::Digest.new(DIGEST))
   File.open(CRL_FILE, 'w') {|f| f.write crl.to_pem }
 end
