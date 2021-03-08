@@ -2,7 +2,7 @@
 
 This utility is designed as [easy-rsa](https://github.com/OpenVPN/easy-rsa) replacement suitable for one exact use case.
 
-It's basically a wrapper around `openssl` to:
+It's basically a wrapper around OpenSSL API to:
 * create a self-signed CA
 * create client and server certificates and pack them to ZIP files along with the OpenVPN config
 * revoke the certificates
@@ -28,7 +28,7 @@ If you're brave, [let me know](https://github.com/chillum/ovpn-key/issues), wher
 ### Usage
 
 1. `ovpn-key --init`
-2. edit `ovpn-key.yml` and `openssl.ini`
+2. edit `ovpn-key.yml`
 3. `ovpn-key --ca --dh`
 4. `ovpn-key --server --nopass`
 5. `ovpn-key --client somebody [--nopass]`

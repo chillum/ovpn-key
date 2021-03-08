@@ -1,15 +1,18 @@
-#! /usr/bin/env ruby
+#! /usr/bin/env ruby -w
 # frozen_string_literal: true
 
-require 'optparse'
 require 'fileutils'
+require 'io/console'
+require 'openssl'
+require 'optparse'
 require 'yaml'
 require 'zip'
 require_relative '../lib/version'
 require_relative '../lib/functions'
 
-SSL_CONF = 'openssl.ini'
 APP_CONF = 'ovpn-key.yml'
+CRL_FILE = 'crl.pem'
+SERIAL_FILE = 'serial'
 
 options = {}
 OptionParser.new do |opts|
@@ -41,7 +44,7 @@ OptionParser.new do |opts|
     check_client(v)
     options[:generate_zip] = v
   end
-  opts.on('--revoke [name]', 'Revoke a certificate (using crl.pem) and delete it') do |v|
+  opts.on("--revoke [name]', 'Revoke a certificate (using #{CRL_FILE}) and delete it") do |v|
     abort 'Please specify what certificate to revoke' unless v
     options[:revoke] = v
   end
@@ -67,13 +70,10 @@ if options[:init]
     create_dir options[:init]
     Dir.chdir options[:init]
   end
-  %w[certs meta].each {|dir| create_dir dir}
-  ['meta/index.txt', 'meta/index.txt.attr', 'meta/serial', SSL_CONF, APP_CONF].each {|file|
-    unless File.exist? file
-      FileUtils.copy_file(File.expand_path("defaults/#{file}", "#{__dir__}/.."), "./#{file}")
-      puts "Created file: #{file}"
-    end
-  }
+  unless File.exist? APP_CONF
+    FileUtils.copy_file(File.expand_path("defaults/#{APP_CONF}", "#{__dir__}/.."), "./#{APP_CONF}")
+    puts "Created file: #{APP_CONF}"
+  end
 elsif !File.exist? APP_CONF
   begin
     rc = YAML.load_file(File.expand_path("~/.#{APP_CONF}"))
@@ -90,29 +90,78 @@ rescue Errno::ENOENT
 end
 ZIP_DIR  = settings['zip_dir']  || '~'
 OPENVPN  = settings['openvpn']  || 'openvpn'
-OPENSSL  = settings['openssl']  || 'openssl'
 ENCRYPT  = settings['encrypt']  || 'aes128'
+DIGEST   = settings['digest']   || 'sha256'
 KEY_SIZE = settings['key_size'] || 2048
-CA_DAYS  = settings['ca_days']  || 3650
 CN_CA    = settings['ca_name']  || 'Certification Authority'
-REQ      = settings['details']
+
+unless settings['ca_days'].nil?
+  if settings['expire'].nil?
+    puts 'Migrating pre-0.8 configuration to new format: ca_days'
+    puts "WARNING: if you tweaked `default_days` or `default_days_crl` in #{SSL_CONF}, edit #{APP_CONF}"
+    File.open(APP_CONF, 'a') do |f|
+      f.write "# ca_days is not used anymore, you can remove it\nexpire:\n"
+      f.write "  ca:     #{settings['ca_days']}\n  crl:    3650\n  server: 3650\n  client: 3650\n"
+    end
+  else
+    puts "WARNING: `ca_days` setting is deprecated, remove it from #{APP_CONF}"
+  end
+end
+
+settings['expire']           ||= {}
+settings['expire']['ca']     ||= settings['ca_days'] || 3650
+settings['expire']['crl']    ||= 3650
+settings['expire']['server'] ||= 3650
+settings['expire']['client'] ||= 3650
+EXPIRE = settings['expire']
+
+if settings['x509'].nil? && !settings['details'].nil?
+  puts 'Migrating pre-0.8 configuration to new format: details'
+  REQ = OpenSSL::X509::Name.parse(settings['details']).to_a
+  File.open(APP_CONF, 'a') do |f|
+    f.write "# details is not used anymore, you can remove it\nx509:\n"
+    REQ.map {|i, j| f.write "  #{i}: #{j}\n" }
+  end
+else
+  REQ = settings['x509']
+  puts "WARNING: `details` section is deprecated, remove it from #{APP_CONF}" unless settings['details'].nil?
+end
+if settings['openssl']
+  puts "WARNING: `openssl` setting is deprecated, remove it from #{APP_CONF}"
+end
+
+if !File.exist?(SERIAL_FILE) && File.exist?('meta/serial')
+  FileUtils.copy_file('meta/serial', SERIAL_FILE)
+  puts 'Copied meta/serial to serial'
+end
+%w[certs meta].each {|dir|
+  puts "WARNING: #{dir} directory is not used anymore. you can remove it" if File.exist? dir
+}
+if File.exist? 'openssl.ini'
+  puts 'WARNING: openssl.ini file is not used anymore. you can remove it'
+end
 
 if options[:generate_ca]
-  gen_key('ca', options[:no_password])
-  sign_key('ca', 'ca', CN_CA)
-  gen_crl
+  ca_pass = options[:no_password] ? nil : ask_password('ca')
+  gen_key('ca', ca_pass)
+  sign_key('ca', CN_CA, ca_pass)
+  gen_crl(ca_pass)
 end
 if options[:generate_dh]
-  exe "#{OPENSSL} dhparam -out dh.pem #{KEY_SIZE}"
+  File.open('dh.pem', 'w') do |f|
+    print 'Generating dh.pem. This will take a while'
+    f.write OpenSSL::PKey::DH.new(KEY_SIZE)
+    puts '. Done'
+  end
 end
 if options[:generate_static]
   exe "#{OPENVPN} --genkey --secret ta.key"
 end
 if options[:generate_server]
-  gen_and_sign('server', options[:generate_server], options[:no_password])
+  gen_and_sign('server', options[:generate_server], options[:no_password] ? nil : ask_password(options[:generate_server]))
 end
 if options[:generate_client]
-  gen_and_sign('client', options[:generate_client], options[:no_password])
+  gen_and_sign('client', options[:generate_client], options[:no_password] ? nil : ask_password(options[:generate_client]))
 end
 if options[:generate_zip]
   ovpn_files = Dir['*.ovpn']
@@ -125,14 +174,14 @@ if options[:generate_zip]
     abort 'More than one .ovpn files in current directory, aborting'
   end
 
-  gen_and_sign('client', options[:generate_zip], options[:no_password])
+  gen_and_sign('client', options[:generate_zip], options[:no_password] ? nil : ask_password(options[:generate_zip]))
 
   zip_file = File.join(File.expand_path(ZIP_DIR), "#{File.basename ovpn_file, '.ovpn'}.tblk.zip")
   File.delete(zip_file) if File.exist?(zip_file)
   File.umask umask
   Zip::File.open(zip_file, Zip::File::CREATE) do |zip|
     zip.get_output_stream(ovpn_file) {|f|
-      File.open(ovpn_file).each {|line| f.write line}
+      f.write File.read(ovpn_file)
       f.write "cert #{options[:generate_zip]}.crt\nkey #{options[:generate_zip]}.key\n"
     }
     ['ca.crt', "#{options[:generate_zip]}.crt", "#{options[:generate_zip]}.key"].each {|i|
@@ -142,7 +191,5 @@ if options[:generate_zip]
   end
 end
 if options[:revoke]
-  exe "#{OPENSSL} ca -revoke '#{options[:revoke]}.crt' -config #{SSL_CONF}"
-  gen_crl
-  %w[crt key].each {|ext| File.delete "#{options[:revoke]}.#{ext}"}
+  revoke(options[:revoke])
 end

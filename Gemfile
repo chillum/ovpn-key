@@ -2,4 +2,4 @@
 
 source 'https://rubygems.org'
 
-gem 'gem4rake', '~> 1.0'
+gem 'gem4rake', '~> 1.3'

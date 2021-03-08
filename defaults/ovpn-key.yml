@@ -1,8 +1,17 @@
 zip_dir:  '~'
 openvpn:  openvpn
-openssl:  openssl
-encrypt:  aes128
+encrypt:  AES128
+digest:   SHA256
 key_size: 2048
-ca_days:  3650
+expire: # days
+  ca:     3650
+  crl:    3650
+  server: 3650
+  client: 3650
 ca_name:  Certification Authority
-details:  /C=US/ST=CA/L=San Francisco/O=Dva Debila/OU=OpenVPN
+x509:
+  C:  US
+  ST: CA
+  L:  San Francisco
+  O:  Dva Debila
+  OU: OpenVPN
