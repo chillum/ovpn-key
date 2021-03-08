@@ -44,7 +44,7 @@ OptionParser.new do |opts|
     check_client(v)
     options[:generate_zip] = v
   end
-  opts.on("--revoke [name]', 'Revoke a certificate (using #{CRL_FILE}) and delete it") do |v|
+  opts.on('--revoke [name]', "Revoke a certificate (using #{CRL_FILE}) and delete it") do |v|
     abort 'Please specify what certificate to revoke' unless v
     options[:revoke] = v
   end
