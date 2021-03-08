@@ -30,7 +30,7 @@ def unencrypt_ca_key(pass = '')
   begin
     OpenSSL::PKey::RSA.new File.read('ca.key'), pass
   rescue OpenSSL::PKey::RSAError
-    # this means the file is encrypted or pass is wrong
+    # this means pass is wrong, so ask for it
     OpenSSL::PKey::RSA.new File.read('ca.key'), ask_password('ca')
   end
 rescue OpenSSL::PKey::RSAError
@@ -54,7 +54,7 @@ def sign_key(type, cn, password)
   certname = type == 'ca' ? 'ca' : cn
   key = OpenSSL::PKey::RSA.new File.read("#{certname}.key"), password
   serial = new_serial
-  cert = gen_cert(type, cn, key, serial)
+  cert = gen_cert(type, cn, key.public_key, serial)
 
   ca_key = type == 'ca' ? key : unencrypt_ca_key
   cert.sign ca_key, OpenSSL::Digest.new(DIGEST)
@@ -63,27 +63,28 @@ def sign_key(type, cn, password)
   File.open("#{certname}.crt", 'w') {|f| f.write cert.to_pem }
 end
 
-def gen_cert(type, cn, key, serial)
+def gen_cert(type, cn, pubkey, serial)
   cert = basic_cert(type, cn)
-  cert.public_key = key.public_key
+  cert.public_key = pubkey
   cert.serial = serial
 
   customize_cert(type, cert)
 end
 
-# rubocop:disable Metrics/AbcSize
 def basic_cert(type, cn)
-  # rubocop:enable Metrics/AbcSize
-  subj = OpenSSL::X509::Name.new([['CN', cn]] + REQ.to_a)
   cert = OpenSSL::X509::Certificate.new
 
   cert.version = 2
-  cert.subject = subj
+  cert.subject = OpenSSL::X509::Name.new([['CN', cn]] + REQ.to_a)
   cert.issuer = OpenSSL::X509::Name.new([['CN', CN_CA]] + REQ.to_a)
   cert.not_before = Time.now
-  cert.not_after = Time.now + EXPIRE[type] * 86_400 # days to seconds
+  cert.not_after = time_after_days(EXPIRE[type])
 
   cert
+end
+
+def time_after_days(days)
+  Time.now + days * 86_400 # days to seconds
 end
 
 # rubocop:disable Metrics/MethodLength
@@ -114,24 +115,17 @@ def customize_cert(type, cert)
 end
 
 # rubocop:disable Metrics/AbcSize
-# rubocop:disable Metrics/MethodLength
 def revoke(certname)
   # rubocop:enable Metrics/AbcSize
-  # rubocop:enable Metrics/MethodLength
   crl = OpenSSL::X509::CRL.new(File.read(CRL_FILE))
   cert = OpenSSL::X509::Certificate.new(File.read("#{certname}.crt"))
   revoke = OpenSSL::X509::Revoked.new.tap {|rev|
     rev.serial = cert.serial
     rev.time = Time.now
   }
-  crl.next_update = Time.now + EXPIRE['crl'] * 86_400 # days to seconds
+  crl.next_update = time_after_days(EXPIRE['crl'])
   crl.add_revoked(revoke)
-  begin
-    update_crl(crl, '')
-  rescue OpenSSL::PKey::RSAError
-    retry
-  end
-
+  update_crl(crl, '')
   %w[crt key].each {|ext| File.delete "#{certname}.#{ext}" }
 end
 
@@ -143,12 +137,10 @@ def gen_crl(ca_pass)
   update_crl(crl, ca_pass)
 end
 
-# rubocop:disable Metrics/AbcSize
 def update_crl(crl, ca_pass)
-  # rubocop:enable Metrics/AbcSize
   ca_key = unencrypt_ca_key(ca_pass)
   crl.last_update = Time.now
-  crl.next_update = Time.now + EXPIRE['crl'] * 86_400 # days to seconds
+  crl.next_update = time_after_days(EXPIRE['crl'])
   crl.sign(ca_key, OpenSSL::Digest.new(DIGEST))
   File.open(CRL_FILE, 'w') {|f| f.write crl.to_pem }
 end
