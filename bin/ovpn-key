@@ -98,7 +98,7 @@ KEY_SIZE = settings['key_size'] || 2048
 CN_CA    = settings['ca_name']  || 'Certification Authority'
 
 settings['expire']           ||= {}
-settings['expire']['ca']     ||= settings['ca_days'] || 3650
+settings['expire']['ca']     ||= 3650
 settings['expire']['crl']    ||= 3650
 settings['expire']['server'] ||= 3650
 settings['expire']['client'] ||= 3650
