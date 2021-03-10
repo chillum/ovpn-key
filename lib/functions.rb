@@ -110,7 +110,6 @@ def customize_cert(type, cert)
     cert.add_extension ef.create_extension('keyUsage', 'digitalSignature')
     cert.add_extension ef.create_extension('extendedKeyUsage', 'clientAuth')
   end
-
   cert
 end
 

@@ -65,7 +65,6 @@ if options[:generate_client] && options[:generate_zip]
   # I assume that user likely wants one of them and is confused with usage
   abort 'There can be only one: --client or --zip'
 end
-umask = File.umask 0o077
 
 if options[:init]
   unless options[:init] == '.'
@@ -180,7 +179,6 @@ if options[:generate_zip]
 
   zip_file = File.join(File.expand_path(ZIP_DIR), "#{File.basename ovpn_file, '.ovpn'}.tblk.zip")
   File.delete(zip_file) if File.exist?(zip_file)
-  File.umask umask
   Zip::File.open(zip_file, Zip::File::CREATE) do |zip|
     zip.get_output_stream(ovpn_file) {|f|
       f.write File.read(ovpn_file)
