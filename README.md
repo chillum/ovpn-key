@@ -40,7 +40,7 @@ If you're brave, [let me know](https://github.com/chillum/ovpn-key/issues), wher
 
 ### Configuration
 
-Most of configuration is done in `open-vpn.key` and `openssl.ini` files in the directory.
+It's just a single simple YAML file named [`ovpn-key.yml`](https://github.com/chillum/ovpn-key/blob/master/defaults/ovpn-key.yml).
 
 ovpn-key also processes `~/.ovpn-key.yml` file, for now it has only one possible setting:
 ```yaml
