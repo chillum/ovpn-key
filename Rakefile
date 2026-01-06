@@ -3,6 +3,6 @@
 require_relative 'lib/version'
 require 'gem4rake'
 
-Gem4Rake.new ::VERSION
+Gem4Rake.new VERSION
 
 task default: :install

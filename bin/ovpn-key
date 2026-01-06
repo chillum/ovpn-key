@@ -178,7 +178,7 @@ if options[:generate_zip]
   gen_and_sign('client', options[:generate_zip], options[:no_password] ? nil : ask_password(options[:generate_zip]))
 
   zip_file = File.join(File.expand_path(ZIP_DIR), "#{File.basename ovpn_file, '.ovpn'}.tblk.zip")
-  File.delete(zip_file) if File.exist?(zip_file)
+  FileUtils.rm_f(zip_file)
   Zip::File.open(zip_file, Zip::File::CREATE) do |zip|
     zip.get_output_stream(ovpn_file) {|f|
       f.write File.read(ovpn_file)

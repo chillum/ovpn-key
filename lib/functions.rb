@@ -44,9 +44,8 @@ end
 
 def gen_key(certname, password)
   key = OpenSSL::PKey::RSA.new(KEY_SIZE)
-  File.open("#{certname}.key", 'w') do |f|
-    f.write password ? key.to_pem(OpenSSL::Cipher.new(ENCRYPT), password) : key
-  end
+  File.write("#{certname}.key",
+             password ? key.to_pem(OpenSSL::Cipher.new(ENCRYPT), password) : key)
 end
 
 # type is one of: 'ca', 'server', 'client'
@@ -59,8 +58,8 @@ def sign_key(type, cn, password)
   ca_key = type == 'ca' ? key : unencrypt_ca_key
   cert.sign ca_key, OpenSSL::Digest.new(DIGEST)
 
-  File.open(SERIAL_FILE, 'w') {|f| f.write serial }
-  File.open("#{certname}.crt", 'w') {|f| f.write cert.to_pem }
+  File.write(SERIAL_FILE, serial)
+  File.write("#{certname}.crt", cert.to_pem)
 end
 
 def gen_cert(type, cn, pubkey, serial)
@@ -84,7 +83,7 @@ def basic_cert(type, cn)
 end
 
 def time_after_days(days)
-  Time.now + days * 86_400 # days to seconds
+  Time.now + (days * 86_400) # days to seconds
 end
 
 # rubocop:disable Metrics/MethodLength
@@ -141,7 +140,7 @@ def update_crl(crl, ca_pass)
   crl.last_update = Time.now
   crl.next_update = time_after_days(EXPIRE['crl'])
   crl.sign(ca_key, OpenSSL::Digest.new(DIGEST))
-  File.open(CRL_FILE, 'w') {|f| f.write crl.to_pem }
+  File.write(CRL_FILE, crl.to_pem)
 end
 
 def new_serial
